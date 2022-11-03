@@ -1,25 +1,10 @@
 import os
-import math
 import numpy as np
 
+from scipy import stats
 from lib.hmm import hmm
 from lib.data import data
 from matplotlib import pyplot as plt
-
-
-def labels_distribution(tags: list[str], hymns_beginnings: list[int], n: int):
-    person_freq = np.zeros(n)
-    animal_freq = np.zeros(n)
-    current_hymn = 0
-    for i in range(len(tags)):
-        if i == hymns_beginnings[current_hymn+1]:
-            current_hymn = current_hymn + 1
-        l = hymns_beginnings[current_hymn+1] - hymns_beginnings[current_hymn]
-        if tags[i] == 'PER':
-            person_freq[math.floor((i - hymns_beginnings[current_hymn]) / l * n)] += 1
-        elif tags[i] == 'ANIMAL':
-            animal_freq[math.floor((i - hymns_beginnings[current_hymn]) / l * n)] += 1
-    return person_freq, animal_freq
 
 
 if __name__ == '__main__':
@@ -35,17 +20,34 @@ if __name__ == '__main__':
 
     y_pred = [tag for sentence in y_pred for tag in sentence]
 
-    n_intervals = 11
-    p_freq, a_freq = labels_distribution(y_pred, beginnings, n_intervals)
+    n = 11
+    person_counts, animal_counts = data.labels_counts(y_pred, beginnings, n)
 
-    width = 1 / (n_intervals+1)
-    ind = np.linspace(0, 1, n_intervals + 1)[:-1]
-    fig = plt.figure(figsize=(15, 5))
+    """ проверка гипотезы однородности """
+    n1 = sum(person_counts)
+    n2 = sum(animal_counts)
+
+    chi_square = 0
+    for i in range(n):
+        chi_square = chi_square + (person_counts[i] / n1 - animal_counts[i] / n2) ** 2 / (
+                    person_counts[i] + animal_counts[i])
+
+    chi_square = n1 * n2 * chi_square
+    print(f'{stats.chi2.ppf(1-0.05, n-1)} = X^2_кр < X^2_набл = {chi_square} => распределения различные')
+
+    """ график распределения частот person/animal """
+    person_frequency = person_counts / sum(person_counts)
+    animal_frequency = animal_counts / sum(animal_counts)
+
+    width = 1 / (n + 1)
+    ind = np.linspace(0, 1, n + 1)[:-1]
+
+    fig = plt.figure(figsize=(10, 5))
     ax = fig.add_subplot(111)
-    ax.bar(ind + 1 / (2 * n_intervals), np.array(p_freq), width, color='#ff7f0e', label='PER')
-    ax.bar(ind + 1 / (2 * n_intervals), np.array(a_freq), width, color='#1f77b4', label='ANIMAL')
-    plt.plot(ind + width / 2, p_freq, color='#1f77b4', linewidth=3, marker='o')
-    plt.plot(ind + width / 2, a_freq, color='white', linewidth=3, marker='o')
+    ax.bar(ind + 1 / (2 * n), np.array(person_frequency), width, color='#ff7f0e', label='PER', alpha=.5)
+    ax.bar(ind + 1 / (2 * n), np.array(animal_frequency), width, color='#1f77b4', label='ANIMAL', alpha=.5)
+    plt.plot(ind + width / 2, person_frequency, color='#ff7f0e', linewidth=3, marker='o')
+    plt.plot(ind + width / 2, animal_frequency, color='#1f77b4', linewidth=3, marker='o')
     plt.xlabel('x*(100%)')
     plt.ylabel('frequency')
     plt.legend()
