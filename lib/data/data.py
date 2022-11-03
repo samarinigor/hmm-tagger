@@ -1,6 +1,8 @@
 import os
 import string
+import math
 import seaborn as sns
+import numpy as np
 
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
 from matplotlib import pyplot as plt
@@ -72,3 +74,18 @@ def metrics(y_true: list[str], y_pred: list[str], labels: list[str]) -> None:
     print(f'f1-score: {f1_score(y_true, y_pred, average=None, labels=labels)}')
     print(f'Accuracy: {accuracy_score(y_true, y_pred)}')
     plot_confusion_matrix(y_true, y_pred, labels)
+
+
+def labels_counts(tags: list[str], hymns_beginnings: list[int], n: int):
+    person_freq = np.zeros(n)
+    animal_freq = np.zeros(n)
+    current_hymn = 0
+    for i in range(len(tags)):
+        if i == hymns_beginnings[current_hymn+1]:
+            current_hymn = current_hymn + 1
+        l = hymns_beginnings[current_hymn+1] - hymns_beginnings[current_hymn]
+        if tags[i] == 'PER':
+            person_freq[math.floor((i - hymns_beginnings[current_hymn]) / l * n)] += 1
+        elif tags[i] == 'ANIMAL':
+            animal_freq[math.floor((i - hymns_beginnings[current_hymn]) / l * n)] += 1
+    return person_freq, animal_freq
